@@ -1,11 +1,8 @@
-from utils.utils import get_file_content
-
 def pipelineEntity(item) -> dict:
     return {
         "name":item["name"],
         "email":item["email"],
-        "pname":item["pname"],
-        "content_loc":item["content_loc"]
+        "pname":item["pname"]
     }
 
 def pipelinesEntity(items) -> list:
