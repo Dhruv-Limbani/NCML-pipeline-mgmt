@@ -1,5 +1,5 @@
 # fastapi
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 
 # db
@@ -26,5 +26,5 @@ async def health_check():
     pipelines = list(conn.local.pipelines.find())
     pipelines = pipelinesEntity(pipelines)
     if len(pipelines) != 0:
-        return JSONResponse(status_code=200, content={"pipelines": pipelines})
-    raise HTTPException(status_code=200, detail={"message": "Database is empty"})
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"pipelines": pipelines})
+    raise HTTPException(status_code=status.HTTP_200_OK, detail={"message": "Database is empty"})

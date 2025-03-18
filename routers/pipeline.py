@@ -5,9 +5,9 @@ from fastapi.responses import JSONResponse, FileResponse
 # db
 from pymongo import ReturnDocument
 from db_service.mongodb_service import conn
-from models.pipeline import Pipeline
 
 # models and schemas
+from models.pipeline import Pipeline
 from schemas.pipeline import pipelineEntity, pipelinesEntity
 
 # utilities
@@ -25,7 +25,8 @@ pipeline_router = APIRouter()
 @pipeline_router.get('/all', tags=['pipeline'],
     responses={
         200: {"description": "Pipelines retrieved successfully"},
-        404: {"description": "Pipelines not found"},
+        204: {"description": "No pipelines found"},
+        404: {"description": "User/Project not found"},
         500: {"description": "Internal server error"}
     },
     description="This endpoint retrieves all the pipelines of the given user for a particular project."
@@ -34,6 +35,9 @@ async def get_pipelines(email: str, pname: str):
 
     check_db_connection(conn)
 
+    if conn.local.projects.find_one({"email": email, "name": pname}) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User/Project not found")
+
     pipelines = conn.local.pipelines.find({"email": email, "pname": pname})
 
     if pipelines is not None:
@@ -41,7 +45,7 @@ async def get_pipelines(email: str, pname: str):
         if len(pipelines) != 0:
             return JSONResponse(status_code=status.HTTP_200_OK, content={"pipelines":pipelines})
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipelines not found")
+    raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
 @pipeline_router.get('/', tags=['pipeline'],
     responses={
@@ -69,6 +73,7 @@ async def get_pipeline(email: str, pname: str, name: str):
         200: {"description": "Pipeline saved successfully"},
         400: {"description": "Bad request"},
         404: {"description": "User/Project not found"},
+        409: {"description": "Name already in use"},
         500: {"description": "Internal server error"}
     },
     description = "This endpoint saves a pipeline with the given details."
@@ -86,7 +91,7 @@ async def create_pipeline(email: str, pname: str, file: UploadFile):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User/Project not found")
 
         if conn.local.pipelines.find_one({"email": email, "pname": pname, "name":file.filename}):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A pipeline with name: {file.filename} already exists under this email and project!")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A pipeline with name: {file.filename} already exists under this email and project!")
 
         path = STORAGE_LOC + os.path.join(email, pname, 'pipelines', file.filename)
 
@@ -130,7 +135,7 @@ async def update_pipeline(email: str, pname: str, name: str, file: UploadFile):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project/Pipeline not found")
 
     if name != file.filename and conn.local.pipelines.find_one({"email": email, "pname": pname, "name":file.filename}) is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A pipeline with name: {file.filename} already exists under this email and project!")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A pipeline with name: {file.filename} already exists under this email and project!")
 
     try:
 
@@ -164,7 +169,7 @@ async def update_pipeline(email: str, pname: str, name: str, file: UploadFile):
     },
     description="This endpoint deletes a pipeline by it's user, project name and name"
 )
-async def delete_dataset(pipeline: Pipeline):
+async def delete_pipeline(pipeline: Pipeline):
 
     check_db_connection(conn)
 
